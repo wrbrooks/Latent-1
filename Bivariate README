@@ -1,0 +1,1 @@
+README For bivariate case
