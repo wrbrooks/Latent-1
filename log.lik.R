@@ -29,7 +29,7 @@ log.lik <- function(data, params, event) {
   gamma2 = gamma[(n+1):(2*n)]
   sigma1 = params[(2*p+p*d+2*n+1)]
   sigma2 = params[(2*p+p*d+2*n+2)]
-  lambda = params[(2*p+p*d+2*n+3)]
+  lambda = params[(2*p+p*d+2*n+3):(2*p+p*d+2*n+2+d)]
   
   
   #Event-level alphas:
@@ -40,9 +40,11 @@ log.lik <- function(data, params, event) {
   for (k in 1:d) {
     indx = which(event==unique(event)[k])
     alpha.local[indx,] = matrix(alpha[(p*(k-1)+1):(p*k)], length(indx), p, byrow=TRUE)
+    
+    sumLogLikNormal = sumLogLikNormal - lambda[k]*sum(gamma1[indx]*gamma2[indx])
   }
   
-  sumLogLikNormal = -n/2*log(sigma1*sigma2) - 1/(2*sigma1)*(sum(gamma1^2))-1/(2*sigma2)*(sum(gamma2^2)) - lambda*sum(gamma1*gamma2)
+  sumLogLikNormal = sumLogLikNormal -n/2*log(sigma1*sigma2) - 1/(2*sigma1)*(sum(gamma1^2))-1/(2*sigma2)*(sum(gamma2^2))
   
   #Anonymous function to compute log likelihood:
   (function (x) sum(data*x - exp(x), na.rm=TRUE))(gamma1 %*% t(beta1) + gamma2 %*% t(beta2) + alpha.local)+sumLogLikNormal

@@ -43,15 +43,18 @@ score <- function(data, params, event, specific=NULL) {
   gamma2 = gamma[(n+1):(2*n)]
   sigma1 = params[(2*p+p*d+2*n+1)]
   sigma2 = params[(2*p+p*d+2*n+2)]
-  lambda = params[(2*p+p*d+2*n+3)]
+  lambda = params[(2*p+p*d+2*n+3):(2*p+p*d+2*n+2+d)]
   
-  #Event-level alphas:
+  #Event-level alphas:'
+  #Sort out lambdas here too
   alpha.local = matrix(0, n, p)
+  lambda.local = vector()
   for (k in 1:d) {
     indx = which(event==unique(event)[k])
     alpha.local[indx,] = matrix(alpha[p*(k-1) + 1:p], length(indx), 
                                 p, byrow=TRUE)
-    
+    #Derivative of lambda(lagrangian multiplier) is simply the dot product of the gammas in the event
+    lambda.local = c(lambda.local, -sum(gamma1[indx]*gamma2[indx]))
   }
   
   #Just compute this once to save time:
@@ -79,7 +82,7 @@ score <- function(data, params, event, specific=NULL) {
   grad = c(grad, (-n/(2*sigma2) + 1/(2*sigma2^2)*sum(gamma2^2)))
   
   #Lambdas as well
-  grad = c(grad, -sum(gamma1*gamma2))
+  grad = c(grad, lambda.local)
   
   grad
 }

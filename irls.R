@@ -19,7 +19,7 @@ irls <- function(data, params, event) {
   gamma2 = gamma[(n+1):(2*n)]
   sigma1 = params[(2*p+p*d+2*n+1)]
   sigma2 = params[(2*p+p*d+2*n+2)]
-  lambda = params[(2*p+p*d+2*n+3)]
+  lambda = params[(2*p+p*d+2*n+3):(2*p+p*d+2*n+2+d)]
   
   
   #Make structure for alpha:
