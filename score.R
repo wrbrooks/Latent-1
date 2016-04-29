@@ -16,10 +16,12 @@
 #' @return The score functions, evaluated at the current parameter values.
 #' 
 score <- function(data, params, event, specific=NULL) {
-  #Basic constants:
+  # basic constants:
   n <- nrow(data)
   p <- ncol(data)
   d <- length(unique(event))
+  
+  # check for predictable error conditions
   if (is.null(specific))
     specific <- rep(FALSE, p)
   if (length(specific) != p)
