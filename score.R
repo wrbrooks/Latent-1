@@ -63,6 +63,7 @@ score <- function(data, params, event, specific=NULL) {
   
   #Just compute this once to save time:
   eta <- exp(gamma1 %*% t(beta1) + gamma2 %*% t(beta2) + alpha.local)
+  
   #Gradient in the direction of event-specific alphas:
   grad <- vector()
   for (k in 1:d) {
