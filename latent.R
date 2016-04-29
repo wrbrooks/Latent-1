@@ -101,11 +101,11 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
   
   while (!finished) {
     #These iterations restart conjugacy:
-    converged = FALSE
+    converged.cg = FALSE
     i = 0
     
     f.old = log.lik(data, xx, event)
-    while (!converged) {
+    while (!converged.cg) {
       i = i+1
       t = 1
       
@@ -132,47 +132,44 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
         if(f.proposed > f.old)
           FoundStep = TRUE
         else {
-          t = t*0.9
+          t <- t*0.9
           if(t <= .Machine$double.eps){
             #Step size too small, just take original parameters
             converged = TRUE
             newxx = xx
             cat("Step size too small, converged") 
           } else {
-            newxx = xx + dir.new * t
+            newxx <- xx + dir.new * t
             f.proposed = log.lik(data, newxx, event)
           }
         }
       }
-      #Now we try to find the optimal step
-      FoundStep = FALSE
-      f.best = f.proposed
-      while(!FoundStep && !converged){
-        
-        t = t * 0.9
-        if(t <= .Machine$double.eps){
-          converged = TRUE
-          cat("Step size too small, converged") 
-        }
-        newxx = xx + dir.new * t
-        
-        f.proposed = log.lik(data, newxx, event)
-        
-        if(f.proposed > f.best){
-          f.best = f.proposed
-        }
-        else{
-          t = t/0.9
-          newxx = xx + dir.new * t
-          FoundStep = TRUE
-        }
-      }
+#       #Now we try to find the optimal step
+#       FoundStep = FALSE
+#       f.best = f.proposed
+#       while(!FoundStep && !converged){
+#         
+#         t = t * 0.9
+#         if(t <= .Machine$double.eps){
+#           converged = TRUE
+#           cat("Step size too small, converged") 
+#         }
+#         newxx = xx + dir.new * t
+#         
+#         f.proposed = log.lik(data, newxx, event)
+#         
+#         if(f.proposed > f.best){
+#           f.best = f.proposed
+#         }
+#         else{
+#           t = t/0.9
+#           newxx = xx + dir.new * t
+#           FoundStep = TRUE
+#         }
+#       }
       
       xx = newxx
-      
-      #Do IRLS here
-      gamma.new = irls(data, xx, event)
-      xx[(2+d)*p + 1:(2*n)] <- gamma.new
+
       
       f.proposed = log.lik(data, xx, event)
       
@@ -188,15 +185,34 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
         }
       }
       
+
       
       if ((f.proposed - f.old) < 0){ 
-        converged = TRUE
+        converged.cg = TRUE
         cat(paste("Converged, new step: ", f.proposed, " old step = ", f.old, "\n"))
       }
       
       f.old = f.proposed
       cdir.old = dir.new
     }
+    
+    
+    converged.irls = FALSE
+    gamma.old <- xx[(2+d)*p + 1:(2*n)]
+    f.old = log.lik(data, xx, event)
+    while (!converged.irls) {
+      #Do IRLS here
+      gamma.new = irls(data, xx, event)
+      xx[(2+d)*p + 1:(2*n)] <- gamma.new
+      f.proposed = log.lik(data, xx, event)
+      
+      if (sum((gamma.old - gamma.new)^2 / sum(gamma.old^2)) < tol)
+        converged.irls <- TRUE
+      else
+        gamma.old <- gamma.new
+    }
+    
+    
     print.table(xx)
     
     #2 betas per col
