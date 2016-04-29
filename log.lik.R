@@ -21,6 +21,7 @@ log.lik <- function(data, params, event) {
   #sigma is 2
   #1 lambda(lagrangian multiplier)
   alpha = params[1:(p*d)]
+<<<<<<< HEAD
   beta = params[(p*d+1):(2*p+p*d)]
   beta1 = beta[1:p]
   beta2 = beta[(p+1):(2*p)]
@@ -31,6 +32,11 @@ log.lik <- function(data, params, event) {
   sigma2 = params[(2*p+p*d+2*n+2)]
   lambda = params[(2*p+p*d+2*n+3):(2*p+p*d+2*n+2+d)]
   
+=======
+  beta = params[p*d + (1:p)]
+  gamma = params[p*d+p + (1:n)]
+  sigma = tail(params, 1)
+>>>>>>> b1e6596aaac59a5dea131fd9541901d0032511e8
   
   #Event-level alphas:
   #Victor, do loglikelihood of bivariate normal distribution here
@@ -39,6 +45,7 @@ log.lik <- function(data, params, event) {
   sumLogLikNormal = 0
   for (k in 1:d) {
     indx = which(event==unique(event)[k])
+<<<<<<< HEAD
     alpha.local[indx,] = matrix(alpha[(p*(k-1)+1):(p*k)], length(indx), p, byrow=TRUE)
     
     sumLogLikNormal = sumLogLikNormal - lambda[k]*sum(gamma1[indx]*gamma2[indx])
@@ -49,3 +56,13 @@ log.lik <- function(data, params, event) {
   #Anonymous function to compute log likelihood:
   (function (x) sum(data*x - exp(x), na.rm=TRUE))(gamma1 %*% t(beta1) + gamma2 %*% t(beta2) + alpha.local)+sumLogLikNormal
 }
+=======
+    alpha.local[indx,] = matrix(alpha[p*(k-1) + 1:p], length(indx), p, byrow=TRUE)
+  }
+  
+  sumLogLik = -n*log(sigma)/2 - sum(gamma^2)/2/sigma)
+  
+  #Anonymous function to compute log likelihood:
+  (function (x) sum(data*x - exp(x), na.rm=TRUE))(gamma %*% t(beta) + alpha.local) - n*log(sigma)/2 - sum(gamma^2)/2/sigma)
+}
+>>>>>>> b1e6596aaac59a5dea131fd9541901d0032511e8
