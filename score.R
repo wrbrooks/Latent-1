@@ -17,11 +17,11 @@
 #' 
 score <- function(data, params, event, specific=NULL) {
   #Basic constants:
-  n = nrow(data)
-  p = ncol(data)
-  d = length(unique(event))
+  n <- nrow(data)
+  p <- ncol(data)
+  d <- length(unique(event))
   if (is.null(specific))
-    specific = rep(FALSE, p)
+    specific <- rep(FALSE, p)
   if (length(specific) != p)
     stop("Argument 'specific' must have length equal to the number of 
          pathogens.")
@@ -29,40 +29,38 @@ score <- function(data, params, event, specific=NULL) {
     stop("Each element of 'specific' must be logical (boolean).")
   
   #Extract parameters from the parameter vector:
-  alpha = params[1:(p*d)]
-  beta = params[(p*d+1):(p*d+p)]
-  gamma = params[(p*d+1+p):(p*d+p+n)]
-  sigma = params[(p*d+1+p+n)]
+  alpha <- params[1:(p*d)]
+  beta <- params[p*d + (1:p)]
+  gamma <- params[p*d+p + (1:n)]
+  sigma <- tail(params, 1)
   
   #Event-level alphas:
-  alpha.local = matrix(0, n, p)
-  gamma.partial = -sum(gamma)/(sigma)
+  alpha.local <- matrix(0, n, p)
+  gamma.partial <- -sum(gamma)/(sigma)
   for (k in 1:d) {
-    indx = which(event==unique(event)[k])
-    alpha.local[indx,] = matrix(alpha[p*(k-1) + 1:p], length(indx), 
-                                p, byrow=TRUE)
-    
+    indx <- which(event==unique(event)[k])
+    alpha.local[indx,] <- matrix(alpha[p*(k-1) + 1:p], length(indx), p, byrow=TRUE)
   }
+  
   #Just compute this once to save time:
-  eta = exp(gamma %*% t(beta) + alpha.local)
+  eta <- exp(gamma %*% t(beta) + alpha.local)
   
   #Gradient in the direction of event-specific alphas:
-  grad = vector()
+  grad <- vector()
   for (k in 1:d) {
-    indx = which(event==unique(event)[k])
-    grad = c(grad, as.integer(!specific) * colSums(data[indx,] - 
-                                                     eta[indx,], na.rm=TRUE))
+    indx <- which(event==unique(event)[k])
+    grad <- c(grad, as.integer(!specific) * colSums(data[indx,] - eta[indx,], na.rm=TRUE))
   }
   
   #Gradient in the direction of beta:
-  grad = c(grad, colSums(sweep(data - eta, 1, gamma, '*'), na.rm=TRUE))
+  grad <- c(grad, colSums(sweep(data - eta, 1, gamma, '*'), na.rm=TRUE))
   
   #Gradient in the direction of gamma, set these to zero and deal with them in IRLS:
   # grad = c(grad, rowSums(sweep(data - eta, 2, beta, '*'), na.rm=TRUE)+gamma.partial)
-  grad = c(grad, rep(0,n))
+  grad <- c(grad, rep(0,n))
   
   #Gradient in the direction of sigma:
-  grad = c(grad, -n/(2*sigma) + 1/(2*sigma^2)*sum(gamma^2))
+  grad <- c(grad, -n/2/sigma + sum(gamma^2)/2/sigma^2)
   
   grad
 }
