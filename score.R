@@ -35,7 +35,7 @@ score <- function(data, params, event, specific=NULL) {
   # lambda is the lagrange multiplier
   alpha <- params[1:(p*d)]
   beta <- params[p*d + 1:(2*p)]
-  gamma <- params[(2+d)*p + (1:2*n)]
+  gamma <- params[(2+d)*p + 1:(2*n)]
   sigma1 <- params[(2+d)*p + 2*n + 1]
   sigma2 <- params[(2+d)*p + 2*n + 2]
   lambda <- tail(params, d)
@@ -82,8 +82,8 @@ score <- function(data, params, event, specific=NULL) {
   grad <- c(grad, rep(0, n))
   
   # Victor, gradient in the direction of sigmas:
-  grad <- c(grad, -n/2/sigma1 + sum(gamma1^2)/2/sigma1^2))
-  grad <- c(grad, -n/2/sigma2 + sum(gamma2^2)/2/sigma2^2))
+  grad <- c(grad, -n/2/sigma1 + sum(gamma1^2)/2/sigma1^2)
+  grad <- c(grad, -n/2/sigma2 + sum(gamma2^2)/2/sigma2^2)
   
   # lambdas as well
   grad <- c(grad, lambda.local)
