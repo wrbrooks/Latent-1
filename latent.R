@@ -74,7 +74,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
   #alpha, beta, gamma, and sigma respectively
   #Mu is fixed at zero
   # xx = c(5*rep(as.integer(!specific), length(unique(event))), rep(1, p), rep(0, n), 1)
-  xx = c(7.837, 2.667, 5.251, 0,0,8.002,3.77,7.25,0,0,7.609,3.208,6.314,0,0,1.316,3.612,2.574,5.519,5.227,1.905,1.888,1.934,1.749,2.001,2.048,2.015,1.781,0.972,-1.055,1.751,1.726,1.657,1.453,1.639,1.009,1.114,0.954,1.013,0.782,0.597,1.2009,0.832,0.658,1.009,0.784,1.42,0.987,1.234,0.957,1.58,1.521,1.65,1.005,1.971,2.11,1.692,1.748,0.989)
+  xx = c(7.837, 2.667, 5.251, 0,0,8.002,3.77,7.25,0,0,7.609,3.208,6.314,0,0,1.316,3.612,2.574,5.519,5.227,1.905,1.888,1.934,1.749,2.001,2.048,2.015,1.781,0.972,1.055,1.751,1.726,1.657,1.453,1.639,1.009,1.114,0.954,1.013,0.782,0.597,1.2009,0.832,0.658,1.009,0.784,1.42,0.987,1.234,0.957,1.58,1.521,1.65,1.005,1.971,2.11,1.692,1.748,0.989)
   finished = FALSE
   
   f.new = log.lik(data, xx, event)
@@ -136,25 +136,21 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
         s.old = s.new
         
         
-        #Only save the new parameters if they've decreased the loss function
+        #Only save the new parameters if they've increased the likelihood
         f.proposed = log.lik(data, p, event)
         if (f.proposed > f.old)
           xx = p
-        f.old = f.new
-        f.new = f.proposed
         
         #Do IRLS now
-        # print.table(xx)
-        cat(paste("Likelihood after CG: ", f.new, "\n"))
         gamma = irls(data, xx, event)
         xx[(ncol(data)*d+1+ncol(data)):(ncol(data)*d+ncol(data)+n)] = gamma
         # print.table(xx)
-        cat(paste("New likelihood after IRLS: ", log.lik(data, xx, event), "\n"))
         
-        
+        #Update values, the check occurs during each loop at the top
+        f.old = f.new
+        f.new = f.proposed
         
       }
-      
       
       
       
