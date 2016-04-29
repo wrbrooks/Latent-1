@@ -84,7 +84,8 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
 #          2.056,2.104,2.127,2.033,2.193,2.255,2.200,2.066,1.533,0.952,1.795,1.278,1.909,1.669,1.381,1.166,1.176,1.375,1.426,1.294,1.185,0.596,1.045,1.129,1.232,1.195,1.226,0.939,0.788,1.267,0.519,0.558,1.027,1.073,1.979,2.355,2.012,2.065,
 #          1.214,0.950,1.075,0.208,1.101,1.045,1.127,0.111,0.056,-0.052,1.377,1.854,0.787,1.004,1.651,1.309,1.396,1.070,1.072,0.998,0.980,1.963,1.280,1.067,1.243,1.117,1.164,1.497,1.838,1.187,2.248,2.214,1.905,1.209,1.385,0.858,0.641,0.595,
 #          1,1,1,1,1)
-  xx = c(rep(as.integer(!specific), d),log(colMeans(data)), as.integer(!specific), rep(1,n), rep(1,n),1,1,rep(1,d))
+  cens <- sapply(1:p, function(k) ifelse(data[,k]<=min.detect[k], min.detect[k], data[,k]))
+  xx = c(rep(as.integer(!specific), d), log(colMeans(cens)), rep(1, p), rep(1, n), rowMeans(sweep(log(cens), 2, log(colMeans(cens)), '-')), 1, 1, rep(1, d))
   finished = FALSE
   
   f.old = -Inf
@@ -113,33 +114,31 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
       dir.new = dir.new/sqrt(sum(dir.new^2))
       
       #Use conjugate gradient here
-      if(i > 1){
+      if (i > 1) {
         cdir.old = cdir.old*max(0, sum(dir.new*(dir.new-dir.old))/(sum(dir.old^2)))
         dir.old = dir.new
         dir.new = dir.new + cdir.old
-      }
-      else{
+      } else {
         dir.old = dir.new
       }
-      
       
       newxx = xx + dir.new * t
       
       FoundStep = FALSE
       f.proposed = log.lik(data, newxx, event)
+      
       #First make sure that we are at least improving
       while(!FoundStep && !converged){
         if(f.proposed > f.old)
           FoundStep = TRUE
-        else{
+        else {
           t = t*0.9
           if(t <= .Machine$double.eps){
             #Step size too small, just take original parameters
             converged = TRUE
             newxx = xx
             cat("Step size too small, converged") 
-          }
-          else{
+          } else {
             newxx = xx + dir.new * t
             f.proposed = log.lik(data, newxx, event)
           }
@@ -173,16 +172,16 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
       
       #Do IRLS here
       gamma.new = irls(data, xx, event)
-      xx[(2*p+p*d+1):(2*p+p*d+2*n)] = gamma.new
+      xx[(2+d)*p + 1:(2*n)] <- gamma.new
       
       f.proposed = log.lik(data, xx, event)
       
       
-      if((i%%10 == 0)){
+      if (i%%10 == 0) {
         cat(paste(i, " iterations, step size ", t, "likelihood at ",f.proposed ,"\n"))
-        if((i%%1000 == 0)){
+        if (i%%1000 == 0) {
           print.table(xx)
-          if((i%%10000 == 0)){
+          if (i%%10000 == 0) {
             cat("Taken the maximum amount of steps, treat as converged")
             converged = TRUE
           }
