@@ -56,7 +56,7 @@ E.step = function(alpha, beta, gamma, data, min.detect, event) {
         if (data[t,j] <= min.detect[j]) {
           #Get the probability that the count is 0,1,...,MLD
           #Where MLD is the minimum level of detection (censoring threshold).
-          cens.log.lik = dpois((0:min.detect[j]), exp(gamma[t]*beta[j] + alpha.local[t,j]), log=TRUE)
+          cens.log.lik = dpois((0:min.detect[j]), exp(gamma[t]*beta[j] +gamma[t+n]*beta[j+p] + alpha.local[t,j]), log=TRUE)
           cens.log.lik = cens.log.lik - max(cens.log.lik, na.rm=TRUE)
           
           #Compute the expected count, conditional on count being no greater than censoring threshold
@@ -64,7 +64,7 @@ E.step = function(alpha, beta, gamma, data, min.detect, event) {
           #then set the expectation to the censoring threshold.
           if (sum(exp(cens.log.lik))==0) {
             data[t,j] = min.detect[j]
-          } else data[t,j] = sum((0:min.detect[j]) * exp(cens.log.lik), na.rm=TRUE) / sum(exp(cens.log.lik), na.rm=TRUE)
+          } else data[t,j] = round(sum((0:min.detect[j]) * exp(cens.log.lik), na.rm=TRUE) / sum(exp(cens.log.lik), na.rm=TRUE))
         }
   
   return(data)

@@ -29,23 +29,33 @@ score <- function(data, params, event, specific=NULL) {
     stop("Each element of 'specific' must be logical (boolean).")
   
   #Extract parameters from the parameter vector:
+  #Change the lengths of the vectors
+  #Beta is 2 per column
+  #Gamma is 2 per row
+  #sigma is 2
+  #1 lambda(lagrangian multiplier)
   alpha = params[1:(p*d)]
-  beta = params[(p*d+1):(p*d+p)]
-  gamma = params[(p*d+1+p):(p*d+p+n)]
-  sigma = params[(p*d+1+p+n)]
+  beta = params[(p*d+1):(2*p+p*d)]
+  beta1 = beta[1:p]
+  beta2 = beta[(p+1):(2*p)]
+  gamma = params[(2*p+p*d+1):(2*p+p*d+2*n)]
+  gamma1 = gamma[1:n]
+  gamma2 = gamma[(n+1):(2*n)]
+  sigma1 = params[(2*p+p*d+2*n+1)]
+  sigma2 = params[(2*p+p*d+2*n+2)]
+  lambda = params[(2*p+p*d+2*n+3)]
   
   #Event-level alphas:
   alpha.local = matrix(0, n, p)
-  gamma.partial = -sum(gamma)/(sigma)
   for (k in 1:d) {
     indx = which(event==unique(event)[k])
     alpha.local[indx,] = matrix(alpha[p*(k-1) + 1:p], length(indx), 
                                 p, byrow=TRUE)
     
   }
-  #Just compute this once to save time:
-  eta = exp(gamma %*% t(beta) + alpha.local)
   
+  #Just compute this once to save time:
+  eta = exp(gamma1 %*% t(beta1) + gamma2 %*% t(beta2) + alpha.local)
   #Gradient in the direction of event-specific alphas:
   grad = vector()
   for (k in 1:d) {
@@ -55,14 +65,21 @@ score <- function(data, params, event, specific=NULL) {
   }
   
   #Gradient in the direction of beta:
-  grad = c(grad, colSums(sweep(data - eta, 1, gamma, '*'), na.rm=TRUE))
+  grad = c(grad, colSums(sweep(data - eta, 1, gamma1, '*'), na.rm=TRUE))
+  grad = c(grad, colSums(sweep(data - eta, 1, gamma2, '*'), na.rm=TRUE)[1:3])
+  grad = c(grad, rep(0,2))
   
-  #Gradient in the direction of gamma, set these to zero and deal with them in IRLS:
-  # grad = c(grad, rowSums(sweep(data - eta, 2, beta, '*'), na.rm=TRUE)+gamma.partial)
+  #Gradient in the direction of gamma:
+  #Treat these as zero, optimize them for IRLS
+  grad = c(grad, rep(0,n))
   grad = c(grad, rep(0,n))
   
-  #Gradient in the direction of sigma:
-  grad = c(grad, -n/(2*sigma) + 1/(2*sigma^2)*sum(gamma^2))
+  #Victor, gradient in the direction of sigmas:
+  grad = c(grad, (-n/(2*sigma1) + 1/(2*sigma1^2)*sum(gamma1^2)))
+  grad = c(grad, (-n/(2*sigma2) + 1/(2*sigma2^2)*sum(gamma2^2)))
+  
+  #Lambdas as well
+  grad = c(grad, -sum(gamma1*gamma2))
   
   grad
 }

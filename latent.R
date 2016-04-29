@@ -71,122 +71,170 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
   n = nrow(data)
   p = ncol(data)
   d = length(unique(event))
-  #alpha, beta, gamma, and sigma respectively
-  #Mu is fixed at zero
-  # xx = c(5*rep(as.integer(!specific), length(unique(event))), rep(1, p), rep(0, n), 1)
-  xx = c(7.837, 2.667, 5.251, 0,0,8.002,3.77,7.25,0,0,7.609,3.208,6.314,0,0,1.316,3.612,2.574,5.519,5.227,1.905,1.888,1.934,1.749,2.001,2.048,2.015,1.781,0.972,-1.055,1.751,1.726,1.657,1.453,1.639,1.009,1.114,0.954,1.013,0.782,0.597,1.2009,0.832,0.658,1.009,0.784,1.42,0.987,1.234,0.957,1.58,1.521,1.65,1.005,1.971,2.11,1.692,1.748,0.989)
+  #1 alpha value per column per event
+  #2 beta value per column
+  #Note that beta2 will have 0s for human specific FIB
+  #Victor, 2 gammas
+  #2 gamma value per row/reading
+  #2 sigma values, 1 for each gamma
+  #1 lambda per event for orthogonality constraint
+  xx = c(5.137,-2.658,1.265,0,0,4.648,-2.069,2.701,0,0,
+         4.507,-1.891,2.414,0,0,1.193,3.849,2.670,5.019,4.763,
+         2.413,3.837,3.054,0,0,
+         2.056,2.104,2.127,2.033,2.193,2.255,2.200,2.066,1.533,0.952,1.795,1.278,1.909,1.669,1.381,1.166,1.176,1.375,1.426,1.294,1.185,0.596,1.045,1.129,1.232,1.195,1.226,0.939,0.788,1.267,0.519,0.558,1.027,1.073,1.979,2.355,2.012,2.065,
+         1.214,0.950,1.075,0.208,1.101,1.045,1.127,0.111,0.056,-0.052,1.377,1.854,0.787,1.004,1.651,1.309,1.396,1.070,1.072,0.998,0.980,1.963,1.280,1.067,1.243,1.117,1.164,1.497,1.838,1.187,2.248,2.214,1.905,1.209,1.385,0.858,0.641,0.595,
+         1,1,1)
   finished = FALSE
   
-  f.new = log.lik(data, xx, event)
   f.old = -Inf
+  f.proposed = 0
+  f.best = 0
+  dir.new = vector()
+  cdir.old = vector()
+  dir.old = vector()
   tol = sqrt(.Machine$double.eps)
   tol = 1e-5
   check=Inf
   
+  
   while (!finished) {
     #These iterations restart conjugacy:
     converged = FALSE
+    i = 0
+    
+    f.old = log.lik(data, xx, event)
     while (!converged) {
-      
-      #Prepare to iterate conjugate gradient descent/IRLS:
-      i=0
-      f.outer = f.old
-      f.old = -Inf
+      i = i+1
       t = 1
-      while(f.new>f.old && !converged && i<length(xx)) {
-        i = i+1
-        
-        dir.new = score(data, xx, event, specific=specific)
-        dir.new = dir.new / sqrt(sum(dir.new^2))
-        
-        #First iteration, ignore conjugacy - thereafter, use it.
-        #s.new is the vector of the new step (in parameter space)
-        if (i==1) {  
-          s.new = dir.new
-        } else {
-          conj = (sum(dir.new^2) + sum(dir.new * dir.old)) / sum(dir.old^2)
-          s.new = dir.new + conj * s.old
-        }
-        
-        #Find the optimal step size
-        #Backtracking: stop when the loss function is majorized
-        condition = (log.lik(data, xx + t*s.new, event) < f.new + sum((t*s.new)*dir.new) + 1/(2*t)*sum((t*s.new)^2))[1]
-        
-        while( condition ) {
-          condition = (log.lik(data, xx + t*s.new, event) < f.new + sum((t*s.new)*dir.new) + 1/(2*t)*sum((t*s.new)^2))[1]
-          
-          #This is the final stopping rule: t gets so small that 1/(2*t) is Inf
-          if (is.na(condition)) {
-            converged = TRUE
-            condition = FALSE
-          }
-          
-          t = 0.8*t
-        }
-        
-        #Find the optimal step
-        step = s.new * t
-        
-        #Make t a little bigger so next iteration has option to make larger step:
-        t = t / 0.8 / 0.8
-        p = xx + step
-        
-        #save for next iteration:
+      
+      dir.new = score(data, xx, event, specific = specific)
+      
+      dir.new = dir.new/sqrt(sum(dir.new^2))
+      
+      #Use conjugate gradient here
+      if(i > 1){
+        cdir.old = cdir.old*max(0, sum(dir.new*(dir.new-dir.old))/(sum(dir.old^2)))
         dir.old = dir.new
-        s.old = s.new
-        
-        
-        #Only save the new parameters if they've decreased the loss function
-        f.proposed = log.lik(data, p, event)
-        if (f.proposed > f.old)
-          xx = p
-        f.old = f.new
-        f.new = f.proposed
-        
-        #Do IRLS now
-        # print.table(xx)
-        cat(paste("Likelihood after CG: ", f.new, "\n"))
-        gamma = irls(data, xx, event)
-        xx[(ncol(data)*d+1+ncol(data)):(ncol(data)*d+ncol(data)+n)] = gamma
-        # print.table(xx)
-        cat(paste("New likelihood after IRLS: ", log.lik(data, xx, event), "\n"))
-        
-        
-        
+        dir.new = dir.new + cdir.old
+      }
+      else{
+        dir.old = dir.new
       }
       
       
+      newxx = xx + dir.new * t
+      
+      FoundStep = FALSE
+      f.proposed = log.lik(data, newxx, event)
+      #First make sure that we are at least improving
+      while(!FoundStep && !converged){
+        if(f.proposed > f.old)
+          FoundStep = TRUE
+        else{
+          t = t*0.9
+          if(t <= .Machine$double.eps){
+            #Step size too small, just take original parameters
+            converged = TRUE
+            newxx = xx
+            cat("Step size too small, converged") 
+          }
+          else{
+            newxx = xx + dir.new * t
+            f.proposed = log.lik(data, newxx, event)
+          }
+        }
+      }
+      #Now we try to find the optimal step
+      FoundStep = FALSE
+      f.best = f.proposed
+      while(!FoundStep && !converged){
+        
+        t = t * 0.9
+        if(t <= .Machine$double.eps){
+          converged = TRUE
+          cat("Step size too small, converged") 
+        }
+        newxx = xx + dir.new * t
+        
+        f.proposed = log.lik(data, newxx, event)
+        
+        if(f.proposed > f.best){
+          f.best = f.proposed
+        }
+        else{
+          t = t/0.9
+          newxx = xx + dir.new * t
+          FoundStep = TRUE
+        }
+      }
+      
+      xx = newxx
+      
+      #Do IRLS here
+      gamma.new = irls(data, xx, event)
+      xx[(2*p+p*d+1):(2*p+p*d+2*n)] = gamma.new
+      
+      f.proposed = log.lik(data, xx, event)
       
       
-      if (verbose) cat(paste("Likelihood objective: ", f.new, "\n", sep=""))
+      if((i%%10 == 0)){
+        cat(paste(i, " iterations, step size ", t, "likelihood at ",f.proposed ,"\n"))
+        if((i%%1000 == 0)){
+          print.table(xx)
+          if((i%%10000 == 0)){
+            cat("Taken the maximum amount of steps, treat as converged")
+            converged = TRUE
+          }
+        }
+      }
       
       
-      if ((f.new - f.outer) < tol * f.outer) converged = TRUE
+      if ((f.proposed - f.old) < 0){ 
+        converged = TRUE
+        cat(paste("Converged, new step: ", f.proposed, " old step = ", f.old, "\n"))
+      }
+      
+      f.old = f.proposed
+      cdir.old = dir.new
     }
+    print.table(xx)
     
-    d = length(unique(event))
-    p = ncol(data)
-    
+    #2 betas per col
+    #2 gammas per row
+    #2 mus/sigmas per event
     alpha = xx[1:(p*d)]
-    beta = xx[(p*d+1):(p*d+p)]
-    gamma = xx[(p*d+1+p):(p*d+p+n)]
-    mu = xx[(p*d+1+p+n):(p*d+p+n+d)]
-    sigma = xx[(p*d+p+n+d+1):(p*d+p+n+2*d)]
+    beta = xx[(p*d+1):(2*p+p*d)]
+    gamma = xx[(2*p+p*d+1):(2*p+p*d+2*n)]
+    sigma = xx[(2*p+p*d+2*n+1) : (2*p+p*d+2*n+2)]
+    lambda = xx[(2*p+p*d+2*n+3)]
+    
     data.new = E.step(alpha, beta, gamma, data, min.detect, event)
     
     check.old = check
     check = sum((data.new - data)^2, na.rm=TRUE) / sum(data^2, na.rm=TRUE)
     data = data.new
     
-    if (check.old - check < (abs(check.old) + tol)*tol) {
-      if (tol<=sqrt(.Machine$double.eps))
+    cat(paste("E-Step, check: ", check.old, ", ", check, "\n"))
+    if (check < tol) {
+      if (tol<=1e-7)
         finished = TRUE
-      tol = max(tol/2, sqrt(.Machine$double.eps))
+      tol = tol/2
       cat(paste("Iterating with tol=", tol, "\n", sep=""))
+      
     }
   }
   
   #Compile the results and return
+  alpha = xx[1:(p*d)]
+  beta = xx[(p*d+1):(2*p+p*d)]
+  beta1 = beta[1:p]
+  beta2 = beta[(p+1):(2*p)]
+  gamma = xx[(2*p+p*d+1):(2*p+p*d+2*n)]
+  gamma1 = gamma[1:n]
+  gamma2 = gamma[(n+1):(2*n)]
+  sigma1 = xx[(2*p+p*d+2*n+1)]
+  sigma2 = xx[(2*p+p*d+2*n+2)]
+  lambda = xx[(2*p+p*d+2*n+3)]
   result = list()
   result$data = data
   result$min.detect = min.detect
@@ -194,10 +242,14 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
   result$specific = specific
   result$alpha = matrix(alpha, d, p, byrow=TRUE)
   colnames(result$alpha) = names(result$beta)
-  result$beta = beta
-  result$gamma = gamma
-  result$mu = mu
-  result$sigma = sigma
+  result$beta1 = beta1
+  result$gamma1 = gamma1
+  result$sigma1 = sigma1
+  result$beta2 = beta2
+  result$gamma2 = gamma2
+  result$sigma2 = sigma2
+  result$lambda = lambda
   
+  options(scipen=999)
   return(result)
 }
