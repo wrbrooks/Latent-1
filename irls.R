@@ -24,10 +24,15 @@ irls <- function(data, params, event) {
   
   #Make structure for alpha:
   alpha.local = matrix(0, n, p)
+  #Make the lagrange multipliers here
+  lambda.local = vector()
   for (k in 1:d) {
     indx = which(event==unique(event)[k])
     alpha.local[indx,] = matrix(alpha[(p*(k-1)+1):(p*k)], length(indx), p, byrow=TRUE)
+    lambda.local = c(lambda.local, lambda[k]*gamma2[indx])
   }
+  #Add zeros to fit column width for the design matrix
+  lambda.local = c(lambda.local, rep(0,n))
   #Make eta into vector, should be 1x(5*38) = 1x190
   eta = as.vector(gamma1 %*% t(beta1) + gamma2 %*% t(beta2) + alpha.local)
   mu.local = exp(eta)
@@ -44,7 +49,7 @@ irls <- function(data, params, event) {
   designMat = rbind(cbind(diag(n)*beta1[1],diag(n)*beta2[1]),cbind(diag(n)*beta1[2],diag(n)*beta2[2]),
                     cbind(diag(n)*beta1[3],diag(n)*beta2[3]),cbind(diag(n)*beta1[4],diag(n)*beta2[4]),
                     cbind(diag(n)*beta1[5],diag(n)*beta2[5]),cbind(diag(n)/sqrt(2*sigma1[1]),matrix(0,n,n)),
-                    cbind(matrix(0,n,n),diag(n)/sqrt(2*sigma2[1])),c(lambda*gamma2, rep(0,n)))
+                    cbind(matrix(0,n,n),diag(n)/sqrt(2*sigma2[1])),lambda.local)
   
   pois = lsfit(x=designMat, y=response, intercept=FALSE, wt=wt)
   
