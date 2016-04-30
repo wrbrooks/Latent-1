@@ -85,7 +85,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
 #          1.214,0.950,1.075,0.208,1.101,1.045,1.127,0.111,0.056,-0.052,1.377,1.854,0.787,1.004,1.651,1.309,1.396,1.070,1.072,0.998,0.980,1.963,1.280,1.067,1.243,1.117,1.164,1.497,1.838,1.187,2.248,2.214,1.905,1.209,1.385,0.858,0.641,0.595,
 #          1,1,1,1,1)
   cens <- sapply(1:p, function(k) ifelse(data[,k]<=min.detect[k], min.detect[k], data[,k]))
-  xx = c(rep(as.integer(!specific), d), log(colMeans(cens)), as.integer(!specific), rep(1, n), rowMeans(sweep(log(cens), 2, log(colMeans(cens)), '-')), 1, 1, rep(10, d))
+  xx = c(rep(as.integer(!specific), d), log(colMeans(cens)), as.integer(!specific), rep(1, n), rowMeans(sweep(log(cens), 2, log(colMeans(cens)), '-')), 1, 1, rep(15, d))
   finished = FALSE
   
   f.old = -Inf
@@ -219,11 +219,12 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
     #2 betas per col
     #2 gammas per row
     #2 mus/sigmas per event
-    alpha = xx[1:(p*d)]
-    beta = xx[(p*d+1):(2*p+p*d)]
-    gamma = xx[(2*p+p*d+1):(2*p+p*d+2*n)]
-    sigma = xx[(2*p+p*d+2*n+1) : (2*p+p*d+2*n+2)]
-    lambda = xx[(2*p+p*d+2*n+3)]
+    alpha <- xx[1:(p * d)]
+    beta <- xx[(p * d + 1):(p * (2 + d))]
+    gamma <- xx[(p * (2 + d) + 1):(p * (2 + d) + 2 * n)]
+    sigma1 <- xx[p * (2 + d) + 2 * n + 1]
+    sigma2 <- xx[p * (2 + d) + 2 * n + 2]
+    lambda <- tail(xx, d)
     
     data.new = E.step(alpha, beta, gamma, data, min.detect, event)
     
@@ -243,16 +244,17 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
   
   cat(log.lik(data, xx, event))
   #Compile the results and return
-  alpha = xx[1:(p*d)]
-  beta = xx[(p*d+1):(2*p+p*d)]
-  beta1 = beta[1:p]
-  beta2 = beta[(p+1):(2*p)]
-  gamma = xx[(2*p+p*d+1):(2*p+p*d+2*n)]
-  gamma1 = gamma[1:n]
-  gamma2 = gamma[(n+1):(2*n)]
-  sigma1 = xx[(2*p+p*d+2*n+1)]
-  sigma2 = xx[(2*p+p*d+2*n+2)]
-  lambda = xx[(2*p+p*d+2*n+3):(2*p+p*d+2*n+2+d)]
+  alpha <- xx[1:(p * d)]
+  beta <- xx[(p * d + 1):(p * (2 + d))]
+  gamma <- xx[(p * (2 + d) + 1):(p * (2 + d) + 2 * n)]
+  sigma1 <- xx[p * (2 + d) + 2 * n + 1]
+  sigma2 <- xx[p * (2 + d) + 2 * n + 2]
+  lambda <- tail(xx, d)
+  beta1 <- beta[1:p]
+  beta2 <- tail(beta, p)
+  gamma1 <- gamma[1:n]
+  gamma2 <- tail(gamma, n)
+  
   result = list()
   result$data = data
   result$min.detect = min.detect

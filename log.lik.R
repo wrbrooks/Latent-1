@@ -17,11 +17,11 @@ log.lik <- function(data, params, event) {
   # extract parameters from the parameter vector
   # sigma is length 2
   # lambda is the lagrange multiplier
-  alpha <- params[1:(p*d)]
-  beta <- params[p*d + 1:(2*p)]
-  gamma <- params[(2+d)*p + 1:(2*n)]
-  sigma1 <- params[(2+d)*p + 2*n + 1]
-  sigma2 <- params[(2+d)*p + 2*n + 2]
+  alpha <- params[1:(p * d)]
+  beta <- params[(p * d + 1):(p * (2 + d))]
+  gamma <- params[(p * (2 + d) + 1):(p * (2 + d) + 2 * n)]
+  sigma1 <- params[p * (2 + d) + 2 * n + 1]
+  sigma2 <- params[p * (2 + d) + 2 * n + 2]
   lambda <- tail(params, d)
 
   # read the separate elements of beta and gamma
@@ -39,7 +39,7 @@ log.lik <- function(data, params, event) {
   sumLogLikNormal <- 0
   for (k in 1:d) {
     indx <- which(event==unique(event)[k])
-    alpha.local[indx,] <-  matrix(alpha[p*(k-1) + 1:p], length(indx), p, byrow=TRUE)
+    alpha.local[indx,] <-  matrix(alpha[(p * (k - 1) + 1):(p * k)], length(indx), p, byrow=TRUE)
     
     sumLogLikNormal <- sumLogLikNormal - lambda[k] * sum(gamma1[indx] * gamma2[indx])
   }
