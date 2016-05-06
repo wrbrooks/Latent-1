@@ -85,7 +85,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
 #          1.214,0.950,1.075,0.208,1.101,1.045,1.127,0.111,0.056,-0.052,1.377,1.854,0.787,1.004,1.651,1.309,1.396,1.070,1.072,0.998,0.980,1.963,1.280,1.067,1.243,1.117,1.164,1.497,1.838,1.187,2.248,2.214,1.905,1.209,1.385,0.858,0.641,0.595,
 #          1,1,1,1,1)
   cens <- sapply(1:p, function(k) ifelse(data[,k]<=min.detect[k], min.detect[k], data[,k]))
-  xx = c(rep(as.integer(!specific), d), log(colMeans(cens)), as.integer(!specific), rep(1, n), rowMeans(sweep(log(cens), 2, log(colMeans(cens)), '-')), 1, 1, rep(15, d))
+  xx = c(rep(as.integer(!specific), d), log(colMeans(cens)), as.integer(!specific), rep(1, n), rowMeans(sweep(log(cens), 2, log(colMeans(cens)), '-')), 1, 1, rep(1, d))
   finished = FALSE
   
   f.old = -Inf
@@ -100,121 +100,177 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
   
   
   while (!finished) {
-    #These iterations restart conjugacy:
-    converged.cg = FALSE
-    i = 0
-    
-    f.old = log.lik(data, xx, event)
-    while (!converged.cg) {
-      i = i+1
-      t = 1
-      
-      dir.new = score(data, xx, event, specific = specific)
-      
-      dir.new = dir.new/sqrt(sum(dir.new^2))
-      
-      #Use conjugate gradient here
-      if (i > 1) {
-        cdir.old = cdir.old*max(0, sum(dir.new*(dir.new-dir.old))/(sum(dir.old^2)))
-        dir.old = dir.new
-        dir.new = dir.new + cdir.old
-      } else {
-        dir.old = dir.new
-      }
-      
-      newxx = xx + dir.new * t
-      
-      foundStep = FALSE
-      f.proposed = log.lik(data, newxx, event)
-      
-      #First make sure that we are at least improving
-      while(!foundStep && !converged.cg){
-        if(f.proposed > f.old)
-          foundStep = TRUE
-        else {
-          t <- t*0.9
-          if(t <= .Machine$double.eps){
-            #Step size too small, just take original parameters
-            converged.cg = TRUE
-            newxx = xx
-            cat("Step size too small, converged") 
-          } else {
-            newxx <- xx + dir.new * t
-            f.proposed = log.lik(data, newxx, event)
-          }
-        }
-      }
-      #Now we try to find the optimal step
-      foundStep = FALSE
-      f.best = f.proposed
-      while(!foundStep && !converged.cg){
-        
-        t <- t * 0.9
-        if(t <= .Machine$double.eps){
-          converged.cg = TRUE
-          cat("Step size too small, converged") 
-        }
-        newxx <- xx + dir.new * t
-        
-        f.proposed <- log.lik(data, newxx, event)
-        
-        if(f.proposed > f.best){
-          f.best = f.proposed
-        }
-        else{
-          t <- t/0.9
-          newxx <- xx + dir.new * t
-          foundStep <- TRUE
-        }
-      }
-      
-      xx = newxx
 
+    f.cg.outer.old <- log.lik(data, xx, event)
+    cg.outer <- FALSE
+    while (!cg.outer) {
       
-      f.proposed = log.lik(data, xx, event)
+      #These iterations restart conjugacy:
+      converged.cg = FALSE
+      i = 0
       
-      
-      if (i%%10 == 0) {
-        cat(paste(i, " iterations of CG, step size ", t, "likelihood at ",f.proposed ,"\n"))
-        if (i%%1000 == 0) {
-          print.table(xx)
-          if (i%%10000 == 0) {
-            cat("Taken the maximum amount of steps, treat as converged")
-            converged.cg = TRUE
+      f.old = log.lik(data, xx, event)
+      while (!converged.cg) {
+        i = i+1
+        t = 1
+        
+        dir.new = score(data, xx, event, specific = specific)
+        
+        dir.new = dir.new/sqrt(sum(dir.new^2))
+        
+        #Use conjugate gradient here
+        if (i > 1) {
+          cdir.old = cdir.old*max(0, sum(dir.new*(dir.new-dir.old))/(sum(dir.old^2)))
+          dir.old = dir.new
+          dir.new = dir.new + cdir.old
+        } else {
+          dir.old = dir.new
+        }
+        
+        newxx = xx + dir.new * t
+        
+        foundStep = FALSE
+        f.proposed = log.lik(data, newxx, event)
+        
+        #First make sure that we are at least improving
+        while(!foundStep && !converged.cg){
+          if(f.proposed > f.old)
+            foundStep = TRUE
+          else {
+            t <- t*0.9
+            if(t <= .Machine$double.eps){
+              #Step size too small, just take original parameters
+              converged.cg = TRUE
+              newxx = xx
+              cat("Step size too small, converged") 
+            } else {
+              newxx <- xx + dir.new * t
+              f.proposed = log.lik(data, newxx, event)
+            }
           }
         }
+        #Now we try to find the optimal step
+        foundStep = FALSE
+        f.best = f.proposed
+        while(!foundStep && !converged.cg){
+          
+          t <- t * 0.9
+          if(t <= .Machine$double.eps){
+            converged.cg = TRUE
+            cat("Step size too small, converged") 
+          }
+          newxx <- xx + dir.new * t
+          
+          f.proposed <- log.lik(data, newxx, event)
+          
+          if(f.proposed > f.best){
+            f.best = f.proposed
+          }
+          else{
+            t <- t/0.9
+            newxx <- xx + dir.new * t
+            foundStep <- TRUE
+          }
+        }
+        
+        xx = newxx
+        
+        f.proposed = log.lik(data, xx, event)
+        
+        
+        if (i%%10 == 0) {
+          cat(paste(i, " iterations of CG, step size ", t, "likelihood at ",f.proposed ,"\n"))
+          if (i%%1000 == 0) {
+            print.table(xx)
+            if (i%%10000 == 0) {
+              cat("Taken the maximum amount of steps, treat as converged")
+              converged.cg = TRUE
+            }
+          }
+        }
+        
+        if ((f.proposed - f.old) < f.old * tol){ 
+          converged.cg = TRUE
+          cat(paste("Converged, new step: ", f.proposed, " old step = ", f.old, "\n"))
+        }
+        
+        f.old = f.proposed
+        cdir.old = dir.new
       }
       
-      if ((f.proposed - f.old) < f.old * tol){ 
-        converged.cg = TRUE
-        cat(paste("Converged, new step: ", f.proposed, " old step = ", f.old, "\n"))
+      
+      
+      #2 betas per col
+      #2 gammas per row
+      #2 mus/sigmas per event
+      alpha <- xx[1:(p * d)]
+      beta <- xx[(p * d + 1):(p * (2 + d))]
+      gamma <- xx[(p * (2 + d) + 1):(p * (2 + d) + 2 * n)]
+      sigma1 <- xx[p * (2 + d) + 2 * n + 1]
+      sigma2 <- xx[p * (2 + d) + 2 * n + 2]
+      lambda <- tail(xx, d)
+      beta1 <- beta[1:p]
+      beta2 <- tail(beta, p)
+      gamma1 <- gamma[1:n]
+      gamma2 <- tail(gamma, n)
+      
+      for (j in 1:p) {
+        a <- matrix(0, n, d)
+        
+        if (!specific[j]) {
+          for (l in 1:d)
+            a[event==unique(event)[l],l] <- 1
+        } else {
+          a <- matrix(NA, n, 0)
+        }
+        
+        X <- cbind(a, gamma1, gamma2)
+        y <- data[,j]
+        pois <- glm(y~X-1, family='poisson')
+        
+        if (!specific[j])
+          alpha[j + p*(1:d - 1)] <- coef(pois)[1:d]
+        
+        beta <- tail(coef(pois), 2)
+        beta1[j] <- beta[1]
+        beta2[j] <- beta[2]
       }
       
-      f.old = f.proposed
-      cdir.old = dir.new
-    }
+      xx[(p * d + 1):(p * (2 + d))] <- c(beta1, beta2)
+      xx[1:(p * d)] <- alpha
     
-    converged.irls = FALSE
-    gamma.old <- xx[(2+d)*p + 1:(2*n)]
-    f.old = log.lik(data, xx, event)
-    i = 0
-    while (!converged.irls) {
-      i <- i+1
-      #Do IRLS here
-      gamma.new = irls(data, xx, event)
+      f.cg.outer.proposed <- log.lik(data, xx, event)
       
-      xx[(2+d)*p + 1:(2*n)] <- gamma.new
-      
-      if (i%%10 == 0) {
-        cat(paste(i, " iterations of IRLS, likelihood = ", log.lik(data, xx, event), "\n"))
+      if ((f.cg.outer.proposed - f.cg.outer.old) < f.cg.outer.old * tol){ 
+        cg.outer <- TRUE
+        cat(paste("Converged, new step: ", f.cg.outer.proposed, " old step = ", f.cg.outer.old, "\n"))
       }
       
-      if (sum((gamma.old - gamma.new)^2 / sum(gamma.old^2)) < tol)
-        converged.irls <- TRUE
-      else{
-        gamma.old <- gamma.new
-      }
+      f.cg.outer.old <- f.cg.outer.proposed
     }
+      
+#     converged.irls = FALSE
+#     gamma.old <- xx[(2+d)*p + 1:(2*n)]
+#     f.old = log.lik(data, xx, event)
+#     iter.irls <- 0
+#     max.iter <- 200
+#     while (!converged.irls && iter.irls<max.iter) {
+#       iter.irls <- iter.irls + 1
+#       #Do IRLS here
+#       gamma.new <- irls(data, xx, event)
+#       
+#       xx[(2+d)*p + 1:(2*n)] <- gamma.new
+#       
+#       if (iter.irls%%10 == 0) {
+#         cat(paste(iter.irls, " iterations of IRLS, likelihood = ", log.lik(data, xx, event), "\n"))
+#       }
+#       
+#       if (sum((gamma.old - gamma.new)^2 / sum(gamma.old^2)) < 1e-8) {
+#         converged.irls <- TRUE
+#       } else {
+#         gamma.old <- gamma.new
+#       }
+#     }
     
     #2 betas per col
     #2 gammas per row
@@ -225,6 +281,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
     sigma1 <- xx[p * (2 + d) + 2 * n + 1]
     sigma2 <- xx[p * (2 + d) + 2 * n + 2]
     lambda <- tail(xx, d)
+
     
     data.new = E.step(alpha, beta, gamma, data, min.detect, event)
     

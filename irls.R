@@ -8,7 +8,7 @@ irls <- function(data, params, event) {
   # sigma is length 2
   # lambda is the lagrange multiplier
   alpha <- params[1:(p * d)]
-  beta <- params[(p * d + 1):(p * (2 + d))]
+  beta <- params[p * d + 1:(2 * p)]
   gamma <- params[(p * (2 + d) + 1):(p * (2 + d) + 2 * n)]
   sigma1 <- params[p * (2 + d) + 2 * n + 1]
   sigma2 <- params[p * (2 + d) + 2 * n + 2]
@@ -26,26 +26,35 @@ irls <- function(data, params, event) {
   alpha.local = matrix(0, n, p)
   
   #Make the lagrange multipliers here
-  lambda.local = vector()
+  lambda.local = matrix(NA, 0, length(gamma))
   for (k in 1:d) {
     indx <- which(event==unique(event)[k])
     alpha.local[indx,] = matrix(alpha[(p*(k-1)+1):(p*k)], length(indx), p, byrow=TRUE)
-    lambda.local <- c(lambda.local, lambda[k]*gamma2[indx])
+    
+    # rows of the design matrix relating to the lagrange multipliers
+    lagrange1 <- rep(0, n)
+    lagrange2 <- rep(0, n)
+
+    lagrange1[indx] <- lambda[k]*gamma2[indx]
+    lagrange2[indx] <- lambda[k]*gamma1[indx]
+    
+    lambda.local <- rbind(lambda.local, c(lagrange1, rep(0, n)))
+    lambda.local <- rbind(lambda.local, c(rep(0, n), lagrange2))
   }
   
   #Add zeros to fit column width for the design matrix
-  lambda.local = c(lambda.local, rep(0, n))
+  #lambda.local = c(lambda.local, rep(0, n))
   
   #Make eta into vector, should be 1x(5*38) = 1x190
   eta = as.vector(gamma1 %*% t(beta1) + gamma2 %*% t(beta2) + alpha.local)
   mu.local = exp(eta)
-  wt = c(mu.local, rep(1, n), rep(1, n), 1)
+  wt = c(mu.local, rep(1, n), rep(1, n), rep(1, 2*d))
   
   #Deduct alpha.local here as the design matrix will not include it
   z = eta - as.vector(alpha.local) + (as.vector(as.matrix(data)) - mu.local) / mu.local
   
   #Create response vector, consisting of vector z, 2 vectors of n length for the gaussian priors, and 1 entry for the lagrange multiplier
-  response = c(z, rep(0, n), rep(0, n), 0)
+  response = c(z, rep(0, n), rep(0, n), rep(0, 2*d))
   
   
   #Make design matrix

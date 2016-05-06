@@ -62,24 +62,28 @@ score <- function(data, params, event, specific=NULL) {
   }
   
   # compute this once to save time:
-  eta <- exp(gamma1 %*% t(beta1) + gamma2 %*% t(beta2) + alpha.local)
+  mu <- exp(gamma1 %*% t(beta1) + gamma2 %*% t(beta2) + alpha.local)
   
-  # gradient in the direction of event-specific alphas:
-  grad <- vector()
-  for (k in 1:d) {
-    indx <- which(event==unique(event)[k])
-    grad <- c(grad, as.integer(!specific) * colSums(data[indx,] - eta[indx,], na.rm=TRUE))
-  }
+  # gradient in the direction of alpha
+  grad <- rep(0, p*d)
   
   # gradient in the direction of beta:
-  grad <- c(grad, colSums(sweep(data - eta, 1, gamma1, '*'), na.rm=TRUE))
-  grad <- c(grad, colSums(sweep(data - eta, 1, gamma2, '*'), na.rm=TRUE)[1:3])
-  grad <- c(grad, rep(0, 2))
+  #grad <- c(grad, colSums(sweep(data - eta, 1, gamma1, '*'), na.rm=TRUE))
+  #grad <- c(grad, colSums(sweep(data - eta, 1, gamma2, '*'), na.rm=TRUE)[1:3])
+  #grad <- c(grad, rep(0, 2))
+  grad <- c(grad, rep(0, p))
+  grad <- c(grad, rep(0, p))
   
   # gradient in the direction of gamma:
   # treat these as zero, optimize them for IRLS
-  grad <- c(grad, rep(0, n))
-  grad <- c(grad, rep(0, n))
+  #grad <- c(grad, rep(0, n))
+  #grad <- c(grad, rep(0, n))
+  
+  # gradient in the direction of gamma1:
+  grad <- c(grad, rowSums(sweep(data - mu, 2, beta1, '*')) - gamma2 * unlist(sapply(1:length(lambda), function(k) rep(lambda[k], sum(event==unique(event)[k])))))
+  
+  # gradient in the direction of gamma2:
+  grad <- c(grad, rowSums(sweep(data - mu, 2, beta2, '*')) - gamma1 * unlist(sapply(1:length(lambda), function(k) rep(lambda[k], sum(event==unique(event)[k])))))
   
   # Victor, gradient in the direction of sigmas:
   grad <- c(grad, -n/2/sigma1 + sum(gamma1^2)/2/sigma1^2)
